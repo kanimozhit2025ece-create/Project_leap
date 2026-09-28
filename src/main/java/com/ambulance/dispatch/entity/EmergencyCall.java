@@ -1,7 +1,9 @@
 
 package com.ambulance.dispatch.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -19,6 +21,16 @@ public class EmergencyCall {
     @JoinColumn(name = "ambulance_id")
     private Ambulance ambulance;
 
+    // Public user who registered this emergency.
+    // Nullable so existing emergency records still work.
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registered_user_id")
+    private UserAccount registeredUser;
+
+    @Column(nullable = false)
+    private String priority = "NORMAL";
+
     private String status;
 
     private LocalDateTime receivedAt;
@@ -26,6 +38,7 @@ public class EmergencyCall {
     private LocalDateTime arrivedAt;
 
     private LocalDateTime completedAt;
+
 
     public Long getId() {
         return id;
@@ -49,6 +62,22 @@ public class EmergencyCall {
 
     public void setAmbulance(Ambulance ambulance) {
         this.ambulance = ambulance;
+    }
+
+    public UserAccount getRegisteredUser() {
+        return registeredUser;
+    }
+
+    public void setRegisteredUser(UserAccount registeredUser) {
+        this.registeredUser = registeredUser;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
     }
 
     public String getStatus() {

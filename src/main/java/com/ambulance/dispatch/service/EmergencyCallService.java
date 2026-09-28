@@ -12,7 +12,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Comparator;
 
 @Service
 public class EmergencyCallService {
@@ -21,22 +20,33 @@ public class EmergencyCallService {
     private final AmbulanceRepository ambulanceRepository;
     private final ZoneRepository zoneRepository;
     private final ZoneDistanceService distanceService;
+    private final AmbulanceLocationHistoryRepository historyRepository;
+    private final UserAccountRepository userRepository;
 
     public EmergencyCallService(
             EmergencyCallRepository callRepository,
             AmbulanceRepository ambulanceRepository,
             ZoneRepository zoneRepository,
-            ZoneDistanceService distanceService) {
-
+            ZoneDistanceService distanceService,
+            AmbulanceLocationHistoryRepository historyRepository,
+            UserAccountRepository userRepository
+    ) {
         this.callRepository = callRepository;
         this.ambulanceRepository = ambulanceRepository;
         this.zoneRepository = zoneRepository;
         this.distanceService = distanceService;
+        this.historyRepository = historyRepository;
+        this.userRepository = userRepository;
     }
 
-    // Register emergency call
-    public EmergencyCall registerCall(Long zoneId) {
+    // 1. REGISTER EMERGENCY
 
+    @Transactional
+    public EmergencyCall registerCall(
+            Long zoneId,
+            String priority,
+            Long registeredUserId
+    ) {
         Zone zone = zoneRepository.findById(zoneId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -45,29 +55,63 @@ public class EmergencyCallService {
                         )
                 );
 
+        if (priority == null ||
+                !(priority.equals("NORMAL") ||
+                        priority.equals("HIGH") ||
+                        priority.equals("CRITICAL"))) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid emergency priority"
+            );
+        }
+
         EmergencyCall call = new EmergencyCall();
 
         call.setCallerZone(zone);
+        call.setPriority(priority);
         call.setStatus("PENDING");
+
         call.setReceivedAt(
                 LocalDateTime.now(ZoneId.of("Asia/Kolkata"))
         );
 
-        return callRepository.save(call);
+        if (registeredUserId != null) {
+            UserAccount user = userRepository
+                    .findById(registeredUserId)
+                    .orElseThrow(() ->
+                            new ResponseStatusException(
+                                    HttpStatus.UNAUTHORIZED,
+                                    "Registered user not found"
+                            )
+                    );
+
+            call.setRegisteredUser(user);
+        }
+
+        EmergencyCall savedCall =
+                callRepository.saveAndFlush(call);
+
+        // Automatically assign pending calls.
+        assignPendingCalls();
+
+        return callRepository.findById(savedCall.getId())
+                .orElseThrow();
     }
 
+    // 2. ASSIGN NEAREST AVAILABLE AMBULANCE
 
     @Transactional
     public EmergencyCall assignAmbulance(Long callId) {
 
-        EmergencyCall call =
-                callRepository.findByIdForUpdate(callId)
-                        .orElseThrow(() ->
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND,
-                                        "Emergency call not found"
-                                )
-                        );
+        EmergencyCall call = callRepository
+                .findByIdForUpdate(callId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Emergency call not found"
+                        )
+                );
 
         if (!"PENDING".equals(call.getStatus())) {
             throw new ResponseStatusException(
@@ -77,21 +121,59 @@ public class EmergencyCallService {
         }
 
         List<Ambulance> available =
-                ambulanceRepository.findAvailableAmbulancesForUpdate();
+                ambulanceRepository
+                        .findAvailableAmbulancesForUpdate();
 
-        Ambulance nearest = available.stream()
-                .min(Comparator.comparingDouble(a ->
-                        distanceService.getDistance(
-                                a.getCurrentZone().getId(),
-                                call.getCallerZone().getId()
-                        )
-                ))
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.CONFLICT,
-                                "No ambulance available"
-                        )
+        if (available.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No ambulance available"
+            );
+        }
+
+        Ambulance nearest = null;
+        double minimumDistance = Double.MAX_VALUE;
+
+        Long callerZoneId = call.getCallerZone().getId();
+
+        for (Ambulance ambulance : available) {
+
+            if (ambulance.getCurrentZone() == null) {
+                continue;
+            }
+
+            Long ambulanceZoneId =
+                    ambulance.getCurrentZone().getId();
+
+            double distance;
+
+            try {
+                distance = distanceService.getDistance(
+                        ambulanceZoneId,
+                        callerZoneId
                 );
+
+            } catch (ResponseStatusException ex) {
+
+                if (ex.getStatusCode().value() == 404) {
+                    continue;
+                }
+
+                throw ex;
+            }
+
+            if (distance < minimumDistance) {
+                minimumDistance = distance;
+                nearest = ambulance;
+            }
+        }
+
+        if (nearest == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No available ambulance has a distance mapping"
+            );
+        }
 
         nearest.setStatus("BUSY");
         ambulanceRepository.save(nearest);
@@ -102,7 +184,9 @@ public class EmergencyCallService {
         return callRepository.save(call);
     }
 
-    // Mark ambulance as arrived
+    // 3. MARK AMBULANCE AS ARRIVED
+
+    @Transactional
     public EmergencyCall markArrived(Long callId) {
 
         EmergencyCall call = callRepository.findById(callId)
@@ -121,13 +205,16 @@ public class EmergencyCallService {
         }
 
         call.setStatus("ARRIVED");
+
         call.setArrivedAt(
                 LocalDateTime.now(ZoneId.of("Asia/Kolkata"))
         );
+
         return callRepository.save(call);
     }
 
-    // Complete emergency call
+    // 4. COMPLETE EMERGENCY AND SAVE LOCATION HISTORY
+
     @Transactional
     public EmergencyCall completeCall(Long callId) {
 
@@ -147,20 +234,138 @@ public class EmergencyCallService {
         }
 
         call.setStatus("COMPLETED");
-        call.setCompletedAt(
-                LocalDateTime.now(ZoneId.of("Asia/Kolkata"))
-        );
+
+        LocalDateTime completedTime =
+                LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+
+        call.setCompletedAt(completedTime);
+
         Ambulance ambulance = call.getAmbulance();
+
+        Zone previousZone = ambulance.getCurrentZone();
+        Zone newZone = call.getCallerZone();
+
+        // Save history only when the zone changes.
+        if (previousZone != null &&
+                !previousZone.getId().equals(newZone.getId())) {
+
+            AmbulanceLocationHistory history =
+                    new AmbulanceLocationHistory();
+
+            history.setAmbulance(ambulance);
+            history.setFromZone(previousZone);
+            history.setToZone(newZone);
+            history.setUpdatedAt(completedTime);
+
+            historyRepository.save(history);
+        }
+
+        // Release ambulance at the completed call's zone.
+        ambulance.setCurrentZone(newZone);
         ambulance.setStatus("AVAILABLE");
-        ambulance.setCurrentZone(call.getCallerZone());
 
         ambulanceRepository.save(ambulance);
 
-        return callRepository.save(call);
+        EmergencyCall completedCall =
+                callRepository.saveAndFlush(call);
+
+        // Assign waiting calls in priority order.
+        assignPendingCalls();
+
+        return completedCall;
     }
 
-    // Get all emergency calls
+    // 5. GET ALL EMERGENCY CALLS
+    // Controller restricts this to ADMIN and STAFF.
+
     public List<EmergencyCall> getAllCalls() {
         return callRepository.findAll();
+    }
+
+    // 6. GET EMERGENCY CALL BY ID
+    // Controller restricts this to ADMIN and STAFF.
+
+    public EmergencyCall getCallById(Long callId) {
+
+        return callRepository.findById(callId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Emergency call not found"
+                        )
+                );
+    }
+
+    // 7. GET ONLY THE LOGGED-IN PUBLIC USER'S CALLS
+
+    public List<EmergencyCall> getMyCalls(Long userId) {
+        return callRepository
+                .findByRegisteredUserIdOrderByReceivedAtDesc(
+                        userId
+                );
+    }
+
+    // 8. AUTOMATIC PRIORITY-BASED ASSIGNMENT
+
+    private void assignPendingCalls() {
+
+        List<EmergencyCall> pendingCalls =
+                callRepository
+                        .findByStatusOrderByReceivedAtAscIdAsc(
+                                "PENDING"
+                        );
+
+        // CRITICAL -> HIGH -> NORMAL
+        // Older calls first when priority is equal.
+        pendingCalls.sort((call1, call2) -> {
+
+            int rankCompare = Integer.compare(
+                    getPriorityRank(call1.getPriority()),
+                    getPriorityRank(call2.getPriority())
+            );
+
+            if (rankCompare != 0) {
+                return rankCompare;
+            }
+
+            int timeCompare = call1.getReceivedAt()
+                    .compareTo(call2.getReceivedAt());
+
+            if (timeCompare != 0) {
+                return timeCompare;
+            }
+
+            return call1.getId().compareTo(call2.getId());
+        });
+
+        for (EmergencyCall pendingCall : pendingCalls) {
+
+            try {
+                assignAmbulance(pendingCall.getId());
+
+            } catch (ResponseStatusException ex) {
+
+                if (ex.getStatusCode().value() == 409) {
+                    continue;
+                }
+
+                throw ex;
+            }
+        }
+    }
+
+    // 9. PRIORITY RANKING
+
+    private int getPriorityRank(String priority) {
+
+        if ("CRITICAL".equals(priority)) {
+            return 1;
+        }
+
+        if ("HIGH".equals(priority)) {
+            return 2;
+        }
+
+        return 3;
     }
 }

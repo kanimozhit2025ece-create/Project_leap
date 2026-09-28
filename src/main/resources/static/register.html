@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+    <title>Ambulance Dispatch - Register</title>
+    <link rel="stylesheet" href="/auth.css">
+</head>
+<body>
+
+<div class="auth-card">
+    <h1>🚑 Create Account</h1>
+    <p>Ambulance Dispatch System</p>
+
+    <form id="registerForm">
+
+        <label>Full Name</label>
+        <input type="text" id="fullName"
+               placeholder="Enter full name" required>
+
+        <label>Email</label>
+        <input type="email" id="email"
+               placeholder="Enter email" required>
+
+        <label>Password</label>
+        <input type="password" id="password"
+               placeholder="Minimum 8 characters"
+               minlength="8" required>
+
+        <button type="submit">Register</button>
+    </form>
+
+    <p id="message" class="message"></p>
+
+    <p>
+        Already registered?
+        <a href="/login.html">Login</a>
+    </p>
+</div>
+
+<script>
+    document.getElementById("registerForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            const message =
+                document.getElementById("message");
+
+            message.textContent = "Creating account...";
+
+            try {
+                const response = await fetch("/auth/register", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        fullName:
+                        document.getElementById("fullName").value,
+                        email:
+                        document.getElementById("email").value,
+                        password:
+                        document.getElementById("password").value
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        response.status === 409
+                            ? "Email already registered"
+                            : "Registration failed"
+                    );
+                }
+
+                message.textContent =
+                    "Registration successful! Redirecting...";
+
+                setTimeout(() => {
+                    window.location.href = "/login.html";
+                }, 1000);
+
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        });
+</script>
+
+</body>
+</html>

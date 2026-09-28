@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+    <title>Ambulance Dispatch - Login</title>
+    <link rel="stylesheet" href="/auth.css">
+</head>
+<body>
+
+<div class="auth-card">
+    <h1>🚑 Ambulance Dispatch</h1>
+    <p>Login to your account</p>
+
+    <form id="loginForm">
+        <label>Email</label>
+        <input type="email" id="email"
+               placeholder="Enter email" required>
+
+        <label>Password</label>
+        <input type="password" id="password"
+               placeholder="Enter password" required>
+
+        <button type="submit">Login</button>
+    </form>
+
+    <p id="message" class="message"></p>
+
+    <p>
+        Don't have an account?
+        <a href="/register.html">Register</a>
+    </p>
+</div>
+
+<script>
+    document.getElementById("loginForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            const message =
+                document.getElementById("message");
+
+            message.textContent = "Logging in...";
+
+            try {
+                const response = await fetch("/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById("email").value,
+                        password: document.getElementById("password").value
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Invalid email or password");
+                }
+
+                const user = await response.json();
+
+                // Redirect based on user role
+                if (user.role === "ADMIN") {
+                    window.location.href = "/index.html";
+                } else if (user.role === "STAFF") {
+                    window.location.href = "/staff.html";
+                } else if (user.role === "PUBLIC") {
+                    window.location.href = "/public.html";
+                } else {
+                    message.textContent = "Unknown user role";
+                }
+
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        });
+</script>
+
+</body>
+</html>

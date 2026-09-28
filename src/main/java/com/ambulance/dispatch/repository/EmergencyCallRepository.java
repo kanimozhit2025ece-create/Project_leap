@@ -1,9 +1,9 @@
-
 package com.ambulance.dispatch.repository;
 
 import com.ambulance.dispatch.entity.EmergencyCall;
 
 import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -25,7 +25,17 @@ public interface EmergencyCallRepository
             LocalDateTime endDate
     );
 
-    // NEW: Lock emergency call during assignment
+    List<EmergencyCall> findByStatusOrderByReceivedAtAscIdAsc(
+            String status
+    );
+
+    // Get emergencies registered by a particular public user.
+    List<EmergencyCall>
+    findByRegisteredUserIdOrderByReceivedAtDesc(
+            Long userId
+    );
+
+    // Lock emergency call during ambulance assignment.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EmergencyCall e WHERE e.id = :id")
     Optional<EmergencyCall> findByIdForUpdate(

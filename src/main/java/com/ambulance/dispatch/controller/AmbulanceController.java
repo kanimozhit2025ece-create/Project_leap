@@ -2,11 +2,11 @@
 package com.ambulance.dispatch.controller;
 
 import com.ambulance.dispatch.entity.Ambulance;
+import com.ambulance.dispatch.entity.AmbulanceLocationHistory;
 import com.ambulance.dispatch.service.AmbulanceService;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.List;
 
@@ -18,10 +18,12 @@ public class AmbulanceController {
 
     public AmbulanceController(
             AmbulanceService ambulanceService) {
+
         this.ambulanceService = ambulanceService;
     }
 
-    // Register ambulance
+    // 1. REGISTER AMBULANCE
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Ambulance addAmbulance(
@@ -30,23 +32,52 @@ public class AmbulanceController {
         return ambulanceService.addAmbulance(ambulance);
     }
 
-    // Get available ambulances
+    // 2. GET AVAILABLE AMBULANCES
+
     @GetMapping("/available")
     public List<Ambulance> getAvailableAmbulances() {
+
         return ambulanceService.getAvailableAmbulances();
     }
 
-    // Get all ambulances
+    // 3. GET ALL AMBULANCES
+
     @GetMapping
     public List<Ambulance> getAllAmbulances() {
+
         return ambulanceService.getAllAmbulances();
     }
 
-    // Get ambulance by ID
+    // 4. GET AMBULANCE BY ID
+
     @GetMapping("/{id}")
     public Ambulance getAmbulanceById(
             @PathVariable Long id) {
 
         return ambulanceService.getAmbulanceById(id);
+    }
+
+    // 5. UPDATE AMBULANCE LOCATION
+
+    @PutMapping("/{ambulanceId}/location/{zoneId}")
+    public Ambulance updateAmbulanceLocation(
+            @PathVariable Long ambulanceId,
+            @PathVariable Long zoneId) {
+
+        return ambulanceService.updateAmbulanceLocation(
+                ambulanceId,
+                zoneId
+        );
+    }
+
+    // 6. GET AMBULANCE LOCATION HISTORY
+
+    @GetMapping("/{ambulanceId}/history")
+    public List<AmbulanceLocationHistory> getLocationHistory(
+            @PathVariable Long ambulanceId) {
+
+        return ambulanceService.getLocationHistory(
+                ambulanceId
+        );
     }
 }

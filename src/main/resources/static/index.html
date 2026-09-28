@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Dispatch System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>🚑 Ambulance<br>Dispatch System</h2>
+        </div>
+
+        <nav>
+            <a href="#dashboard" class="active"
+               data-page="dashboard">Dashboard</a>
+
+            <a href="#ambulances"
+               data-page="ambulances">Ambulances</a>
+
+
+
+
+            <a href="#emergency"
+               data-page="emergency">Emergency Calls</a>
+
+            <a href="#register"
+               data-page="register">Register Emergency</a>
+
+            <a href="#zones"
+               data-page="zones">Zones</a>
+
+            <a href="#distances"
+               data-page="distances">Zone Distances</a>
+
+            <a href="#reports"
+               data-page="reports">Reports</a>
+
+            <a href="#settings"
+               data-page="settings">Settings</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <h3>Ambulance Dispatch System</h3>
+            <span>Admin</span>
+        </header>
+
+        <!-- DASHBOARD -->
+        <section id="dashboard" class="page">
+            <h1>Dashboard</h1>
+            <p class="subtitle">
+                Welcome to the Ambulance Dispatch System
+            </p>
+
+            <div class="cards">
+                <div class="card">
+                    <p>Total Ambulances</p>
+                    <h2 id="totalAmbulances">0</h2>
+                </div>
+
+                <div class="card">
+                    <p>Available Ambulances</p>
+                    <h2 id="availableAmbulances">0</h2>
+                </div>
+
+                <div class="card">
+                    <p>Pending Calls</p>
+                    <h2 id="pendingCalls">0</h2>
+                </div>
+
+                <div class="card">
+                    <p>Completed Calls</p>
+                    <h2 id="completedCalls">0</h2>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <h2>Recent Emergency Calls</h2>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Call ID</th>
+                        <th>Caller Zone</th>
+                        <th>Status</th>
+                        <th>Ambulance</th>
+                        <th>Received At</th>
+                    </tr>
+                    </thead>
+                    <tbody id="emergencyTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- AMBULANCE LIST -->
+        <section id="ambulances" class="page" hidden>
+            <h1>Ambulance Management</h1>
+            <p class="subtitle">
+                Registered ambulances and their status
+            </p>
+
+            <div class="table-section">
+                <div class="section-header">
+                    <h2>Ambulance List</h2>
+                    <button type="button"
+                            id="openAddAmbulance">
+                        + Add Ambulance
+                    </button>
+                </div>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Ambulance Number</th>
+                        <th>Home Zone</th>
+                        <th>Current Zone</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="ambulanceTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SEPARATE ADD AMBULANCE PAGE -->
+        <section id="add-ambulance" class="page" hidden>
+            <h1>Add Ambulance</h1>
+            <p class="subtitle">
+                Register a new ambulance
+            </p>
+
+            <div class="form-card">
+                <form id="ambulanceForm">
+
+                    <label for="ambulanceNumber">
+                        Ambulance Number
+                    </label>
+                    <input type="text"
+                           id="ambulanceNumber"
+                           placeholder="Example: AMB002"
+                           required>
+
+                    <label for="homeZone">
+                        Home Zone
+                    </label>
+                    <select id="homeZone" required>
+                        <option value="">
+                            Select Home Zone
+                        </option>
+                    </select>
+
+                    <p id="formMessage" role="status"></p>
+
+                    <button type="submit" id="saveAmbulance">
+                        Save Ambulance
+                    </button>
+
+                </form>
+            </div>
+        </section>
+
+        <!-- OTHER PAGES -->
+
+        <!-- EMERGENCY CALL MANAGEMENT -->
+
+
+        <section id="emergency" class="page" hidden>
+            <h1>Emergency Calls</h1>
+            <p class="subtitle">
+                Automatic priority and distance-based ambulance assignment
+            </p>
+
+            <div class="table-section">
+                <div class="section-header">
+                    <h2>All Emergency Calls</h2>
+                    <button type="button" id="refreshCalls">
+                        Refresh
+                    </button>
+                </div>
+
+                <p id="callMessage" role="status"></p>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Call ID</th>
+                        <th>Caller Zone</th>
+                        <th>Priority</th>
+                        <th>Ambulance</th>
+                        <th>Distance</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody id="allEmergencyTable"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="register" class="page" hidden>
+
+            <h1>Register Emergency</h1>
+            <p class="subtitle">
+                Register a new emergency call
+            </p>
+
+            <div class="form-card">
+
+                <form id="emergencyForm">
+
+                    <label for="callerZone">
+                        Caller Zone
+                    </label>
+
+                    <select id="callerZone" required>
+                        <option value="">Select Zone</option>
+                    </select>
+                    <label for="emergencyPriority">Emergency Priority</label>
+
+                    <select id="emergencyPriority" required>
+                        <option value="NORMAL">Normal</option>
+                        <option value="HIGH">High</option>
+                        <option value="CRITICAL">Critical</option>
+                    </select>
+                    <p id="emergencyMessage" role="status"></p>
+
+                    <button type="submit" id="registerButton">
+                        Register Emergency
+                    </button>
+
+                </form>
+
+            </div>
+
+        </section>
+
+
+        <section id="zones" class="page" hidden>
+
+            <h1>Zone Management</h1>
+            <p class="subtitle">Add and view service zones</p>
+
+            <div class="form-card">
+
+                <h2>Add New Zone</h2>
+
+                <form id="zoneForm">
+
+                    <label for="zoneName">Zone Name</label>
+
+                    <input
+                            type="text"
+                            id="zoneName"
+                            placeholder="Example: Salem"
+                            required
+                    >
+
+                    <p id="zoneMessage" role="status"></p>
+
+                    <button type="submit" id="saveZone">
+                        + Add Zone
+                    </button>
+
+                </form>
+
+            </div>
+
+            <div class="table-section zone-list">
+
+                <div class="section-header">
+                    <h2>Registered Zones</h2>
+
+                    <button type="button" id="refreshZones">
+                        Refresh
+                    </button>
+                </div>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Zone ID</th>
+                        <th>Zone Name</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="zoneTable"></tbody>
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <section id="distances" class="page" hidden>
+
+            <h1>Zone Distances</h1>
+            <p class="subtitle">
+                Manage distances between zones
+            </p>
+
+            <div class="form-card">
+
+                <h2>Add Zone Distance</h2>
+
+                <form id="distanceForm">
+
+                    <label for="fromZone">From Zone</label>
+                    <select id="fromZone" required>
+                        <option value="">Select From Zone</option>
+                    </select>
+
+                    <label for="toZone">To Zone</label>
+                    <select id="toZone" required>
+                        <option value="">Select To Zone</option>
+                    </select>
+
+                    <label for="distanceKm">Distance (km)</label>
+                    <input
+                            type="number"
+                            id="distanceKm"
+                            min="1"
+                            step="1"
+                            placeholder="Example: 20"
+                            required
+                    >
+
+                    <p id="distanceMessage" role="status"></p>
+
+                    <button type="submit" id="saveDistance">
+                        Save Distance
+                    </button>
+
+                </form>
+
+            </div>
+
+            <div class="table-section distance-list">
+
+                <div class="section-header">
+                    <h2>Saved Zone Distances</h2>
+
+                    <button type="button" id="refreshDistances">
+                        Refresh
+                    </button>
+                </div>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>From Zone</th>
+                        <th>To Zone</th>
+                        <th>Distance (km)</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="distanceTable"></tbody>
+                </table>
+
+            </div>
+
+        </section>
+
+        <section id="reports" class="page" hidden>
+
+            <h1>Reports</h1>
+            <p class="subtitle">
+                View emergency response performance
+            </p>
+
+            <div class="form-card">
+
+                <h2>Average Response Time</h2>
+
+                <form id="reportForm">
+
+                    <label for="startDate">
+                        Start Date
+                    </label>
+
+                    <input
+                            type="date"
+                            id="startDate"
+                            required
+                    >
+
+                    <label for="endDate">
+                        End Date
+                    </label>
+
+                    <input
+                            type="date"
+                            id="endDate"
+                            required
+                    >
+
+                    <p id="reportMessage" role="status"></p>
+
+                    <button type="submit" id="generateReport">
+                        Generate Report
+                    </button>
+
+                </form>
+
+            </div>
+
+            <div class="table-section report-list">
+
+                <h2>Zone-wise Average Response Time</h2>
+
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Zone</th>
+                        <th>Average Response Time</th>
+                    </tr>
+                    </thead>
+
+                    <tbody id="reportTable"></tbody>
+                </table>
+
+            </div>
+
+        </section>
+        <section id="settings" class="page" hidden>
+            <h1>Settings</h1>
+            <p class="subtitle">Manage your account securely</p>
+            <div class="form-card">
+                <h2>My Profile</h2>
+                <p><strong>Name:</strong> <span id="profileName">Loading...</span></p>
+                <p><strong>Email:</strong> <span id="profileEmail">Loading...</span></p>
+                <p><strong>Role:</strong> <span id="profileRole">Loading...</span></p>
+            </div>
+            <div class="form-card" style="margin-top:24px">
+                <h2>Change Password</h2>
+                <form id="changePasswordForm">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" autocomplete="current-password" required>
+                    <label for="newPassword">New Password (minimum 8 characters)</label>
+                    <input type="password" id="newPassword" minlength="8" autocomplete="new-password" required>
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" minlength="8" autocomplete="new-password" required>
+                    <p id="settingsMessage" role="status"></p>
+                    <button type="submit" id="changePasswordButton">Update Password</button>
+                </form>
+            </div>
+            <div class="form-card" style="margin-top:24px">
+                <h2>Account</h2>
+                <button type="button" id="settingsLogout">Logout</button>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script src="script.js"></script>
+<script src="/admin-guard.js"></script>
+</body>
+</html>

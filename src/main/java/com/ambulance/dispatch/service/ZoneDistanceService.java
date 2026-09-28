@@ -26,10 +26,13 @@ public class ZoneDistanceService {
         this.zoneRepository = zoneRepository;
     }
 
-    // Save distance between two zones
+    // SAVE DISTANCE BETWEEN TWO ZONES
+
     public ZoneDistance addDistance(ZoneDistance distance) {
 
-        if (distance.getFromZone() == null ||
+        // 1. Validate input
+        if (distance == null ||
+                distance.getFromZone() == null ||
                 distance.getToZone() == null ||
                 distance.getFromZone().getId() == null ||
                 distance.getToZone().getId() == null ||
@@ -41,9 +44,28 @@ public class ZoneDistanceService {
             );
         }
 
+        // 2. Get zone IDs
         Long fromId = distance.getFromZone().getId();
         Long toId = distance.getToZone().getId();
 
+        // 3. Validate distance
+        if (distance.getDistanceKm() < 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Distance cannot be negative"
+            );
+        }
+
+        if (fromId.equals(toId) &&
+                distance.getDistanceKm() != 0) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Same zone distance must be zero"
+            );
+        }
+
+        // 4. Check whether zones exist
         Zone fromZone = zoneRepository.findById(fromId)
                 .orElseThrow(() ->
                         new ResponseStatusException(
@@ -60,21 +82,18 @@ public class ZoneDistanceService {
                         )
                 );
 
-        if (distance.getDistanceKm() < 0) {
+        // 5. Prevent duplicate distance mapping
+        if (distanceRepository
+                .findByFromZoneIdAndToZoneId(fromId, toId)
+                .isPresent()) {
+
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Distance cannot be negative"
+                    HttpStatus.CONFLICT,
+                    "Distance mapping already exists"
             );
         }
 
-        if (fromId.equals(toId) &&
-                distance.getDistanceKm() != 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Same zone distance must be zero"
-            );
-        }
-
+        // 6. Save distance
         distance.setId(null);
         distance.setFromZone(fromZone);
         distance.setToZone(toZone);
@@ -82,12 +101,14 @@ public class ZoneDistanceService {
         return distanceRepository.save(distance);
     }
 
-    // Get all distance records
+    // GET ALL DISTANCE RECORDS
+
     public List<ZoneDistance> getAllDistances() {
         return distanceRepository.findAll();
     }
 
-    // Find distance between two zones
+    // FIND DISTANCE BETWEEN TWO ZONES
+
     public Double getDistance(Long fromId, Long toId) {
 
         if (fromId.equals(toId)) {
